@@ -1,6 +1,7 @@
 package net.integr.serialization.obj
 
 import net.integr.processor.BuiltTypeMetadata
+import net.integr.processor.annotation.annotation.Deconstruct
 import net.integr.serialization.data.DataStructure
 import net.integr.serialization.data.parts.ListDataStructure
 import net.integr.serialization.data.parts.ValueDataStructure
@@ -9,38 +10,40 @@ import net.integr.serialization.obj.ObjectFieldResolver.isBasicType
 import net.integr.serialization.obj.ObjectFieldResolver.isCollectionType
 import net.integr.serialization.obj.custom.Deconstructable
 import kotlin.reflect.KClass
-import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
 
 object ObjectDeconstructor {
-    fun deconstruct(target: KClass<*>, obj: Any): DataStructure {
-        val usesCustomDeconstructable =
-            target.companionObject != null && Deconstructable::class.java.isAssignableFrom(target.companionObject!!.java)
+    private val deconstructableCache = mutableMapOf<KClass<*>, Boolean>()
 
-        if (usesCustomDeconstructable) {
+    fun deconstruct(target: KClass<*>, obj: Any): DataStructure {
+        val isDeconstructable = deconstructableCache.getOrPut(target) {
+            target.java.annotations.any { it.annotationClass == Deconstruct::class.java }
+        }
+
+        if (isDeconstructable) {
             @Suppress("UNCHECKED_CAST")
-            val constructable = target.companionObjectInstance as Deconstructable<Any>
-            return constructable.deconstruct(obj)
+            val deconstructable = target.companionObjectInstance as Deconstructable<Any>
+            return deconstructable.deconstruct(obj)
         }
 
         ObjectFieldResolver.assertSerializable(target)
         val classMeta = ObjectFieldResolver.loadMetaData(target)
 
-        val propertyMap = ObjectFieldResolver.loadPropertyMap(target)
+        val propertyMap = ObjectFieldResolver.loadPropertyMap(target, classMeta)
 
         val mapper = ObjectMapper()
 
-        classMeta.properties.forEach { (name, meta) ->
+        classMeta.properties.forEach { (name, meta, _) ->
             val type = meta.realType()
 
             if (type.isBasicType()) {
-                mapper.map(name, ValueDataStructure(propertyMap[name]!!.getter.call(obj)!!.toString()))
+                mapper.map(name, ValueDataStructure(propertyMap[name]!!.invoke(obj)!!.toString()))
             } else if (type.isCollectionType()) {
-                mapper.map(name, ListDataStructure(deconstructCollection(meta, propertyMap[name]!!.getter.call(obj) as Collection<Any>)))
+                mapper.map(name, ListDataStructure(deconstructCollection(meta, propertyMap[name]!!.invoke(obj) as Collection<Any>)))
             } else if (type.java.isEnum) {
-                mapper.map(name, ValueDataStructure((propertyMap[name]!!.getter.call(obj) as Enum<*>).name))
+                mapper.map(name, ValueDataStructure((propertyMap[name]!!.invoke(obj) as Enum<*>).name))
             } else {
-                mapper.map(name, deconstruct(type, propertyMap[name]!!.getter.call(obj)!!))
+                mapper.map(name, deconstruct(type, propertyMap[name]!!.invoke(obj)!!))
             }
         }
 

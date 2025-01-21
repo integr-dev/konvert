@@ -11,9 +11,9 @@ data class ClassMetadata(val name: String, val properties: List<PropertyMetadata
         return "BuiltClassMetadata(\"$name\", listOf(${properties.joinToString { it.toCode() }}))"
     }
 }
-data class PropertyMetadata(val name: String, val type: TypeMetadata) {
+data class PropertyMetadata(val name: String, val type: TypeMetadata, val optional: Boolean) {
     fun toCode(): String {
-        return "BuiltPropertyMetadata(\"$name\", ${type.toCode()})"
+        return "BuiltPropertyMetadata(\"$name\", ${type.toCode()}, $optional)"
     }
 }
 data class TypeMetadata(val type: KSType, val arguments: List<TypeMetadata>) {
@@ -23,7 +23,7 @@ data class TypeMetadata(val type: KSType, val arguments: List<TypeMetadata>) {
 }
 
 data class BuiltClassMetadata(val name: String, val properties: List<BuiltPropertyMetadata>)
-data class BuiltPropertyMetadata(val name: String, val type: BuiltTypeMetadata)
+data class BuiltPropertyMetadata(val name: String, val type: BuiltTypeMetadata, val optional: Boolean)
 data class BuiltTypeMetadata(val type: String, val arguments: List<BuiltTypeMetadata>) {
     fun realType(): KClass<*> {
         return loadKotlinClass(type) ?: throw IllegalArgumentException("Type $type not found")

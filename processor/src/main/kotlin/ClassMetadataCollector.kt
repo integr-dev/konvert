@@ -14,12 +14,14 @@ object ClassMetadataCollector {
 
         val propertiesMeta = mutableListOf<PropertyMetadata>()
 
+        var curr = 0
         for (prop in props) {
             val paramName = if (prop.isAnnotationPresent(Named::class)) prop.getAnnotationsByType(Named::class).first().name else prop.name?.asString() ?: throw IllegalStateException("Parameter name not found")
 
             val typeMeta = resolveType(prop.type.resolve())
 
-            propertiesMeta += PropertyMetadata(paramName, typeMeta)
+            propertiesMeta += PropertyMetadata(paramName, typeMeta, prop.hasDefault)
+            curr++;
         }
 
         val metaObject = ClassMetadata(symbol.simpleName.asString(), propertiesMeta)

@@ -3,7 +3,8 @@ package net.integr
 import net.integr.processor.annotation.Serialize
 import net.integr.serialization.Konvert
 import net.integr.serialization.builder.DataBuilder
-import net.integr.serialization.data.DataStructure
+import net.integr.serialization.deserialization.mode.ConvertMode
+import kotlin.time.measureTime
 
 fun main() {
     val builtDataStructure = DataBuilder.make {
@@ -24,8 +25,9 @@ fun main() {
         }
     }
 
-    val builtDummy: Dummy = Konvert.deserializeInto<Dummy>(builtDataStructure)
-    val serializedDataStructure: DataStructure = Konvert.serializeFrom(builtDummy)
+    val builtDummy = Konvert.deserializeInto<Dummy>(builtDataStructure)
+    val serializedDataStructure = Konvert.serializeFrom(builtDummy)
+    val serializedJson = Konvert.serializeFrom(builtDummy, ConvertMode.JSON, true)
 
     println(serializedDataStructure.getPath("extra.pets.1.age").asInt())
 }
